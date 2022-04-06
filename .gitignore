@@ -1,3 +1,41 @@
+### Folders
+*final_*
+*pytorch_ssim*
+data/
+*.idea
+
+### Files
+
+*outputs.txt
+*outputs*
+
+
+### File Extensions
+
+*.h5
+*.DS_Store
+
+so.*
+*.pdf
+*.csv
+*.npy
+
+# Images
+
+*.png
+*.jpg
+*.bmp
+*.tiff
+*.tif
+# Matlab ignore
+
+*.asv
+*.pdb
+*.mat
+
+
+######### Python #########
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
