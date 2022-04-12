@@ -48,7 +48,7 @@ def train(model, optimizer, epoch, train_loader, device, summarywriter, rnw):
         b2_loss = rst_b2
         rn_loss = torch.abs(rst_rn - tgt_rn)
         
-        loss = b2_loss + rnw * rn_loss 
+        loss = b2_loss + rnw * rn_loss
 
         # Calculate all grads
         loss.backward()
@@ -124,13 +124,15 @@ if __name__ == '__main__':
     n_epochs = 2
     
     bond_val_vst = {100:(358.9964, 59.1849),# 100:(591.989278, 29.463522), #
-                    50:(418.270143, 20.751217),
+                    50:(420.777562, 19.935268),#50:(418.270143, 20.751217),
                     25:(297.289434, 14.042236),
                     15:(234.938067, 7.301423),
                     5:(137.023591, 3.6612093)}
     
     maxGAT = bond_val_vst[args['rfton']][0]
     minGAT = bond_val_vst[args['rfton']][1]
+    
+    print(minGAT, maxGAT)
     
     dataset_name = '{}DBT_VCT_training_{:d}mAs.h5'.format(path_data, mAsLowDose)
     

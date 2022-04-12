@@ -210,10 +210,10 @@ if __name__ == '__main__':
     makedir(path2write)
     
         
-    path_final_model = path_models + "model_ResResNet_DBT_{}_{:d}.pth".format(model_type, args['rf'])
+    path_final_model = path_models + "model_ResResNet_DBT_{}_{:d}.pth".format(model_type, args['rfton'])
     
-    maxGAT = 62
-    minGAT = 58
+    maxGAT = 100#62
+    minGAT = 19.935268#58
 
     # Create model
     model = ResNetModified(tau, sigma_e, red_factor, maxGAT, minGAT)
