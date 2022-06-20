@@ -192,11 +192,11 @@ if __name__ == '__main__':
     
     batch_size = 50
         
-    path_data = "/media/rodrigo/Data/images/UPenn/Phantom/Anthropomorphic/DBT/"
+    path_data = "/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/"
     path_models = "final_models/"
-    path2write = "/media/rodrigo/Data/images/UPenn/Phantom/Anthropomorphic/DBT/Restorations/31_{}/".format(mAsLowDose)
+    path2write = "/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/Restorations/31_{}/".format(mAsLowDose)
     
-    Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Data/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All.mat')
+    Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Dados_2TB/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All.mat')
 
     tau = Parameters_Hol_DBT_R_CC_All['tau'][0][0]
     lambda_e_nproj = Parameters_Hol_DBT_R_CC_All['lambda']
@@ -212,8 +212,8 @@ if __name__ == '__main__':
         
     path_final_model = path_models + "model_ResResNet_DBT_{}_{:d}.pth".format(model_type, args['rfton'])
     
-    maxGAT = 100#62
-    minGAT = 19.935268#58
+    maxGAT = 62#100#  591.989278#
+    minGAT = 58#19.935268# 29.463522#
 
     # Create model
     model = ResNetModified(tau, sigma_e, red_factor, maxGAT, minGAT)

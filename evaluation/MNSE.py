@@ -18,7 +18,7 @@ from scipy.io import loadmat
 from scipy.ndimage import binary_erosion
 from skimage.morphology import disk
 
-sys.path.insert(1,'/home/rodrigo/Documents/rodrigo/codes/LaviCodes/Image Evaluation')
+sys.path.insert(1,'/home/rodrigo/Documents/Rodrigo/Codigos/CodesLavi/Image Evaluation')
 
 import pyeval 
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     
     #%% General parameters
     
-    path2Read = '/media/rodrigo/Data/images/UPenn/Phantom/Anthropomorphic/DBT/'
+    path2Read = '/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/'
     
     DL_types = [args['model']]
     

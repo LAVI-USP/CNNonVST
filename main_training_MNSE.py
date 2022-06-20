@@ -112,7 +112,7 @@ if __name__ == '__main__':
     path_final_model = path_models + "model_ResResNet_DBT_VSTasLayer-{}_rnw{}_{:d}.pth".format(model_type,rnw,red_factor_int)
     path_pretrained_model = path_models + "model_ResResNet_DBT_Noise2Sim_{:d}.pth".format(args['rfton']) 
     
-    Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Data/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All.mat')
+    Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Dados_2TB/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All.mat')
 
     tau = Parameters_Hol_DBT_R_CC_All['tau'][0][0]
     sigma_e = Parameters_Hol_DBT_R_CC_All['sigma_E'][0][0]
