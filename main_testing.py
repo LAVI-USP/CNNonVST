@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import pydicom
 import os
+import sys
 import pathlib
 import argparse
 
@@ -18,7 +19,7 @@ from tqdm import tqdm
 from scipy.io import loadmat
 
 # Own codes
-from libs.models import ResNetModified
+from libs.models import ResResNet, UNet2, RED
 from libs.utilities import load_model, makedir
 
 #%%
@@ -209,15 +210,15 @@ if __name__ == '__main__':
     
     makedir(path2write)
     
-        
-    path_final_model = path_models + "model_ResResNet_DBT_{}_{:d}.pth".format(model_type, args['rfton'])
-    
-    maxGAT = 62#100#  591.989278#
-    minGAT = 58#19.935268# 29.463522#
+    maxGAT = 420.777562 #62#100#  591.989278#
+    minGAT = 19.935268 #58#19.935268# 29.463522#
 
     # Create model
-    model = ResNetModified(tau, sigma_e, red_factor, maxGAT, minGAT)
+    model = ResResNet(tau, sigma_e, red_factor, maxGAT, minGAT) #RED(tau, sigma_e, red_factor, maxGAT, minGAT) #UNet2(tau, sigma_e, red_factor, maxGAT, minGAT, residual=True) # 
 
+        
+    path_final_model = path_models + "model_{}_DBT_{}_{:d}.pth".format(model.__class__.__name__, model_type, args['rfton'])
+    
     # Load pre-trained model parameters (if exist)
     _ = load_model(model, path_final_model=path_final_model, amItesting=True, modelSavedNoStandard=modelSavedNoStandard)
     
