@@ -40,7 +40,7 @@ def readDicom(dir2Read, imgSize):
         
         ind = int(str(dcm).split('/')[-1].split('_')[-1].split('.')[0])
         
-        dcmImg[:,:,ind] = dcmH.pixel_array[130:-130,50:-50].astype('float32') #[0:,1128:].astype('float32') 
+        dcmImg[:,:,ind] = dcmH.pixel_array[130:-130,50:-50].astype('float32')
     
     return dcmImg
 
