@@ -84,7 +84,7 @@ def extract_rois(img_gt, img_fd, img_ld, lambda_e_nproj, rlz, img_id_offset):
                      lambda_e_nproj[i:i+64, j:j+64])
             
             # Am I geting at least one pixel from the breast?
-            if np.sum(patch[2]>4000) < 64*64:
+            if np.sum(patch[2]>4000) < (0.7*(64*64)):
                 # patches.append(patch)
                 im_l = Image.fromarray(patch[0])
                 im_l.save(gen_path + 'low_rlz{}_id{:06d}.tif'.format(rlz,roi_count+img_id_offset))
@@ -140,7 +140,7 @@ def process_each_folder(folder_name, redFactor, num_proj=15):
 
 if __name__ == '__main__':
     
-    path2read = '/media/rodrigo/Data/images/UPenn/Phantom/VCT/VCT_Paper_VST/'
+    path2read = '/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/VCT/VCT_Hologic/'
     path2write = '../data/'
     
     folder_names = [str(item) for item in Path(path2read).glob("*-proj") if Path(item).is_dir()]
@@ -166,7 +166,7 @@ if __name__ == '__main__':
     # Create h5 file
     f = h5py.File('{}DBT_VCT_training_{}mAs.h5'.format(path2write, mAsLowDose), 'a')
     
-    Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Data/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All_VCT.mat')
+    Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Dados_2TB/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All_VCT.mat')
 
     tau = Parameters_Hol_DBT_R_CC_All['tau'][0][0]
     lambda_e_nproj = Parameters_Hol_DBT_R_CC_All['lambda']
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     imgGT2save = []
     save_loop = 0
     
-    for i in range(nROIs_perRlz):
+    for i in range(img_id):
         
         for rlz in range(1,6):
             
