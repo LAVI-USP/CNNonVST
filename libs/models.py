@@ -6,7 +6,8 @@ Created on Wed Mar 30 15:28:51 2022
 @author: Rodrigo
 """
 
-import torch 
+import torch
+import torch.nn.functional as F
 from torch import nn
 from torchvision import models
 from collections import namedtuple
@@ -282,3 +283,64 @@ class Vgg16_NoMaxPooling(nn.Module):
         h = self.slice(X) # PL4 without max pooling
 
         return h
+
+class RED_CNN(nn.Module):
+    def __init__(self, tau, sigma_e, red_factor, maxGAT, minGAT, in_channels=1, out_channels=96, num_layers=5, kernel_size=5, padding=0):
+        super(RED_CNN, self).__init__()
+
+        encoder = [nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=padding)]
+        decoder = [nn.ConvTranspose2d(out_channels, in_channels, kernel_size=kernel_size, stride=1, padding=padding)]
+        for _ in range(num_layers):
+            encoder.append(nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=padding))
+            decoder.append(nn.ConvTranspose2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=padding))
+        self.encoder = nn.ModuleList(encoder)
+        self.decoder = nn.ModuleList(decoder)
+        self.__init_weights()
+
+        self.iVST = iVST(sigma_e)
+        self.VST = VST(tau, sigma_e)
+        self.wSum = weightedSum(tau, sigma_e, red_factor)
+
+        self.minGAT = minGAT
+        self.maxGAT = maxGAT
+
+    def __init_weights(self):
+        for m in self.modules():
+            classname = m.__class__.__name__
+            if classname.find('Conv') != -1:
+                m.weight.data.normal_(0, 0.01)
+                if hasattr(m.bias, 'data'):
+                    m.bias.data.fill_(0)
+
+    def forward(self, x: torch.Tensor):
+
+        # ---- Strat building model
+
+        data = x[:, 0:1, :, :]
+        lamb = x[:, 1:2, :, :]
+
+        # GAT Layer
+        out = self.VST(data, lamb)
+
+        # Scale the GAT signal to [0-1]
+        out = (out - self.minGAT) / self.maxGAT
+
+        # RED
+        residuals = []
+        for block in self.encoder:
+            residuals.append(out)
+            out = F.relu(block(out), inplace=True)
+        for residual, block in zip(residuals[::-1], self.decoder[::-1]):
+            out = F.relu(block(out) + residual, inplace=True)
+        # -----
+
+        # Re-scale
+        out = ((out * self.maxGAT) + self.minGAT)
+
+        # Inverse GAT
+        out = self.iVST(out)
+
+        # Weighted Residual
+        out = self.wSum(out, data, lamb)
+
+        return out
