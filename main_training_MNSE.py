@@ -6,6 +6,7 @@ Created on Wed Mar 30 15:28:51 2022
 @author: Rodrigo
 """
 
+import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import time
@@ -17,7 +18,7 @@ from tqdm import tqdm
 from scipy.io import loadmat
 
 # Own codes
-from libs.models import ResNetModified
+from libs.models import ResResNet, UNet2, RED, VST
 from libs.utilities import load_model, image_grid, makedir
 from libs.dataset import BreastCancerVCTDataset
 from libs.losses import MNSE
@@ -28,9 +29,9 @@ def train(model, optimizer, epoch, train_loader, device, summarywriter, rnw):
 
     # Enable trainning
     model.train()
-
+    
     for step, (data, target, gt) in enumerate(tqdm(train_loader)):
-
+                  
         data = data.to(device)
         target = target.to(device)
         gt = gt.to(device)
@@ -77,6 +78,8 @@ def train(model, optimizer, epoch, train_loader, device, summarywriter, rnw):
                                      epoch * len(train_loader) + step,
                                      close=True)
 
+    return
+
 #%%
 
 if __name__ == '__main__':
@@ -89,9 +92,14 @@ if __name__ == '__main__':
     ap.add_argument("--rfton", type=int, default=50, required=True, 
                     help="Reduction factor which the model was trained. (default: 50)")
     
-    # sys.argv = sys.argv + ['--rf', '50', '--rnw', '0.01357164', '--rfton', '100'] 
+    # sys.argv = sys.argv + ['--rf', '50', '--rnw', '0.0001', '--rfton', '50'] 
     
     args = vars(ap.parse_args())
+    
+    
+    seed = 1634
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     
     rnw = args['rnw']
     
@@ -105,13 +113,6 @@ if __name__ == '__main__':
     mAsFullDose = 60
     mAsLowDose = int(mAsFullDose * red_factor)
     
-    path_data = "data/"
-    path_models = "final_models/"
-    path_logs = "final_logs/{}-rnw{}-r{}".format(time.strftime("%Y-%m-%d-%H%M%S", time.localtime()), rnw, red_factor_int)
-    
-    path_final_model = path_models + "model_ResResNet_DBT_VSTasLayer-{}_rnw{}_{:d}.pth".format(model_type,rnw,red_factor_int)
-    path_pretrained_model = path_models + "model_ResResNet_DBT_Noise2Sim_{:d}.pth".format(args['rfton']) 
-    
     Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Dados_2TB/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All.mat')
 
     tau = Parameters_Hol_DBT_R_CC_All['tau'][0][0]
@@ -119,12 +120,8 @@ if __name__ == '__main__':
     
     del Parameters_Hol_DBT_R_CC_All
     
-    LR = 0.0001 / 10.
-    batch_size = 120
-    n_epochs = 2
-    
     bond_val_vst = {100:(358.9964, 59.1849),# 100:(591.989278, 29.463522), #
-                    50:(420.777562, 19.935268),#50:(418.270143, 20.751217),
+                    50:(420.777562, 19.935268), #50:(418, 58.), #50:(420.777562, 19.935268)
                     25:(297.289434, 14.042236),
                     15:(234.938067, 7.301423),
                     5:(137.023591, 3.6612093)}
@@ -133,6 +130,20 @@ if __name__ == '__main__':
     minGAT = bond_val_vst[args['rfton']][1]
     
     print(minGAT, maxGAT)
+    
+    # Create model
+    model = RED(tau, sigma_e, red_factor, maxGAT, minGAT)  #UNet2(tau, sigma_e, red_factor, maxGAT, minGAT, residual=True) #  ResResNet(tau, sigma_e, red_factor, maxGAT, minGAT) # 
+    
+    path_data = "data/"
+    path_models = "final_models/"
+    path_logs = "final_logs/{}-rnw{}-r{}".format(time.strftime("%Y-%m-%d-%H%M%S", time.localtime()), rnw, red_factor_int)
+    
+    path_final_model = path_models + "model_{}_DBT_VSTasLayer-{}_rnw{}_{:d}.pth".format(model.__class__.__name__, model_type,rnw,red_factor_int)
+    path_pretrained_model = path_models + "model_{}_DBT_Noise2Sim_{:d}.pth".format(model.__class__.__name__, args['rfton']) 
+    
+    LR = 0.0001 / 10.
+    batch_size = 60
+    n_epochs = 2
     
     dataset_name = '{}DBT_VCT_training_{:d}mAs.h5'.format(path_data, mAsLowDose)
     
@@ -149,9 +160,6 @@ if __name__ == '__main__':
     
     # Test if there is a GPU
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    
-    # Create model
-    model = ResNetModified(tau, sigma_e, red_factor, maxGAT, minGAT)
     
     # Create the optimizer and the LR scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=LR, betas=(0.5, 0.999))
