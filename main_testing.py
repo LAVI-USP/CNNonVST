@@ -9,6 +9,7 @@ Created on Wed Mar 30 15:28:51 2022
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import sys
 import pydicom
 import os
 import pathlib
@@ -18,7 +19,7 @@ from tqdm import tqdm
 from scipy.io import loadmat
 
 # Own codes
-from libs.models import ResNetModified
+from libs.models import ResNetModified, RED_CNN
 from libs.utilities import load_model, makedir
 
 #%%
@@ -92,7 +93,7 @@ def rois2img(rst_rois, original_shape, padded_shape):
         
     return rst_img
          
-def model_forward(model, img_ld, lambda_e, red_factor, batch_size):
+def model_forward(model, img_ld, lambda_e, batch_size):
     
     # Change model to eval
     model.eval() 
@@ -141,7 +142,7 @@ def test(model, path_data, path2write, red_factor, mAsLowDose, batch_size):
         lambda_e = lambda_e_nproj[:,-img_ld.shape[1]:,proj_num]       
      
         # Forward through model
-        rst_img = model_forward(model, img_ld, lambda_e, red_factor, batch_size)
+        rst_img = model_forward(model, img_ld, lambda_e, batch_size)
         
         folder_name = path2write + 'DBT_DL_' + model_type + '_' + file_name.split('/')[-2] 
         file2write_name = 'DL_' + file_name.split('/') [-1]
@@ -170,8 +171,10 @@ if __name__ == '__main__':
                     help="Reduction factor which the model was trained. (default: 50)")
     ap.add_argument("--model", type=str, required=True, 
                     help="Model type")
+    ap.add_argument("--rlz", type=int, required=True,
+                    help="Realization")
     
-    # sys.argv = sys.argv + ['--rf', '50', '--rfton', '50', '--model', 'VSTasLayer-MNSE_rnw0.33800761'] 
+    sys.argv = sys.argv + ['--rf', '50', '--rfton', '100', '--model', 'Noise2Noise', '--rlz', '0']
     
     args = vars(ap.parse_args())
         
@@ -210,13 +213,13 @@ if __name__ == '__main__':
     makedir(path2write)
     
         
-    path_final_model = path_models + "model_ResResNet_DBT_{}_{:d}.pth".format(model_type, args['rfton'])
+    path_final_model = path_models + "model_RED_DBT_{}_{:d}.pth".format(model_type, args['rfton'])
     
-    maxGAT = 62#100#  591.989278#
-    minGAT = 58#19.935268# 29.463522#
+    maxGAT = 591.989278#100#  591.989278#
+    minGAT = 29.463522#19.935268# 29.463522#
 
     # Create model
-    model = ResNetModified(tau, sigma_e, red_factor, maxGAT, minGAT)
+    model = RED_CNN(tau, sigma_e, red_factor, maxGAT, minGAT)
 
     # Load pre-trained model parameters (if exist)
     _ = load_model(model, path_final_model=path_final_model, amItesting=True, modelSavedNoStandard=modelSavedNoStandard)
@@ -227,7 +230,7 @@ if __name__ == '__main__':
     # Set it to eval mode
     model.eval()
     
-    print("Running test on {}.".format(device))
+    print("Running test on {}. of 31_{}mAs images".format(device, mAsLowDose))
     
     test(model, path_data, path2write, red_factor, mAsLowDose, batch_size)
     
