@@ -10,10 +10,14 @@ import torch
 
 def MNSE(rlzs, groundTruth):
     
+    # Crop borders
+    rlzs = rlzs[:,:,10:-10,10:-10]
+    groundTruth = groundTruth[:,:,10:-10,10:-10]
+    
     n_batch = rlzs.shape[0] // 5         # Number of non-ground-truth realizations
     
-    rlzs = torch.reshape(rlzs,(n_batch,5,1,64,64))
-    groundTruth = torch.reshape(groundTruth,(n_batch,5,1,64,64))
+    rlzs = torch.reshape(rlzs,(n_batch,5,1,rlzs.shape[-2],rlzs.shape[-1]))
+    groundTruth = torch.reshape(groundTruth,(n_batch,5,1,rlzs.shape[-2],rlzs.shape[-1]))
     
     resNoiseVar = torch.mean(torch.var(rlzs, axis=1, keepdim=True) / groundTruth)
     
