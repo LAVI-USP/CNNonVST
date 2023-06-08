@@ -14,13 +14,13 @@ import pandas as pd
 import argparse
 import sys
 
-from scipy.io import loadmat
-from scipy.ndimage import binary_erosion
-from skimage.morphology import disk
+# from scipy.io import loadmat
+# from scipy.ndimage import binary_erosion
+# from skimage.morphology import disk
 
-sys.path.insert(1,'/home/rodrigo/Documents/Rodrigo/Codigos/CodesLavi/Image Evaluation')
+# sys.path.insert(1,'../')
 
-import pyeval 
+import pyeval
 
 #%% Read Dicom function
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     ap.add_argument("--model", type=str, required=True, 
                     help="Model type")
     
-    # sys.argv = sys.argv + ['--rf', '50', '--model', 'VSTasLayer-MNSE_rnw0.33800761'] 
+    # sys.argv = sys.argv + ['--rf', '50', '--model', 'ResResNet_DBT_VSTasLayer-MNSE_rnw0.42105263']#'ResNet_DBT_Noise2Sim']#VSTasLayer-MNSE_ep_1rnw0.0']
     
     args = vars(ap.parse_args())
         
@@ -62,8 +62,9 @@ if __name__ == '__main__':
     
     #%% General parameters
     
+    # path2Read = '/home/laviusp/Documents/Rodrigo_Vimieiro/phantom/'
     path2Read = '/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/'
-    
+
     DL_types = [args['model']]
     
     
@@ -141,14 +142,14 @@ if __name__ == '__main__':
     groundTruth_rlzs = np.expand_dims(fullDose_all[:,:,:,n_rlzs_GT:][maskBreast], axis=0)
     fullDose_rlzs = np.expand_dims(fullDose_all[:,:,:,:n_rlzs_GT][maskBreast], axis=0)
     
-    # mnse_FD, resNoiseVar_FD, bias2_FD, _ = pyeval.MNSE(groundTruth_rlzs, fullDose_rlzs)
+    mnse_FD, resNoiseVar_FD, bias2_FD, _ = pyeval.MNSE(groundTruth_rlzs, fullDose_rlzs)
     
-    # df = pd.DataFrame(np.array(((["{:.2f} [{:.2f}, {:.2f}]".format(100*mnse_FD[0], 100*mnse_FD[1], 100*mnse_FD[2]),"{:.2f} [{:.2f}, {:.2f}]".format(100*resNoiseVar_FD[0], 100*resNoiseVar_FD[1], 100*resNoiseVar_FD[2]),"{:.2f} [{:.2f}, {:.2f}]".format(100*bias2_FD[0], 100*bias2_FD[1], 100*bias2_FD[2])]),
-    #                             ),ndmin=2),
-    #                               columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
-    #                               index=["Full Dose"])
+    df = pd.DataFrame(np.array(((["{:.7f} [{:.7f}, {:.7f}]".format(mnse_FD[0], mnse_FD[1], mnse_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_FD[0], resNoiseVar_FD[1], resNoiseVar_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_FD[0], bias2_FD[1], bias2_FD[2])]),
+                                ),ndmin=2),
+                                  columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
+                                  index=["Full Dose"])
             
-    # df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
+    df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
     
     del fullDose_all, fullDose_rlzs
     
@@ -157,52 +158,52 @@ if __name__ == '__main__':
         
         mAsReducFactors = int((reduc / 100) * mAsFullDose)
         
-        # # Reduced doses
-        # paths = list(pathlib.Path(path2Read + "31_" + str(mAsReducFactors) ).glob('*')) 
-        # if paths == []:
-        #     raise ValueError('No RD results found.')
-        # paths = [path for path in paths if not 'MB' in str(path) and not 'DL' in str(path)]
-        # reduDose_rlzs = np.empty(shape=(nRows,nCols,15,n_rlzs_fullDose))
-        # for idX, path in enumerate(paths):
-        #     all_rlzs =  readDicom(path,(nRows,nCols))
-        #     for p in range(15):
-        #         # Reduced doses
-        #         unique_rlzs = all_rlzs[:,:,p]
-        #         unique_rlzs = np.polyval(myInv(np.polyfit(groundTruth[maskBreast[:,:,p]][:,p], unique_rlzs[maskBreast[:,:,p]], 1)), unique_rlzs)
-        #         reduDose_rlzs[:,:,p,idX] = np.reshape(unique_rlzs, (nRows,nCols))
+        # Reduced doses
+        paths = list(pathlib.Path(path2Read + "31_" + str(mAsReducFactors) ).glob('*'))
+        if paths == []:
+            raise ValueError('No RD results found.')
+        paths = [path for path in paths if not 'MB' in str(path) and not 'DL' in str(path)]
+        reduDose_rlzs = np.empty(shape=(nRows,nCols,15,n_rlzs_fullDose))
+        for idX, path in enumerate(paths):
+            all_rlzs =  readDicom(path,(nRows,nCols))
+            for p in range(15):
+                # Reduced doses
+                unique_rlzs = all_rlzs[:,:,p]
+                unique_rlzs = np.polyval(myInv(np.polyfit(groundTruth[maskBreast[:,:,p]][:,p], unique_rlzs[maskBreast[:,:,p]], 1)), unique_rlzs)
+                reduDose_rlzs[:,:,p,idX] = np.reshape(unique_rlzs, (nRows,nCols))
                 
-        # # reduDose[reduc] = reduDose_rlzs
+        # reduDose[reduc] = reduDose_rlzs
     
     
-        # # MB restored doses
-        # paths = list(pathlib.Path(path2Read + "Restorations/31_" + str(mAsReducFactors) ).glob('MB*')) 
-        # if paths == []:
-        #     raise ValueError('No MB results found.')
-        # restDose_MB_rlzs = np.empty(shape=(nRows,nCols,15,n_rlzs_fullDose))
-        # for idX, path in enumerate(paths):
-        #     all_rlzs =  readDicom(path,(nRows,nCols))
-        #     for p in range(15):
-        #         # MB restored doses
-        #         unique_rlzs = all_rlzs[:,:,p]
-        #         unique_rlzs = np.polyval(myInv(np.polyfit(groundTruth[maskBreast[:,:,p]][:,p], unique_rlzs[maskBreast[:,:,p]], 1)), unique_rlzs)
-        #         restDose_MB_rlzs[:,:,p,idX] = np.reshape(unique_rlzs, (nRows,nCols))
+        # MB restored doses
+        paths = list(pathlib.Path(path2Read + "Restorations/31_" + str(mAsReducFactors) ).glob('MB*'))
+        if paths == []:
+            raise ValueError('No MB results found.')
+        restDose_MB_rlzs = np.empty(shape=(nRows,nCols,15,n_rlzs_fullDose))
+        for idX, path in enumerate(paths):
+            all_rlzs =  readDicom(path,(nRows,nCols))
+            for p in range(15):
+                # MB restored doses
+                unique_rlzs = all_rlzs[:,:,p]
+                unique_rlzs = np.polyval(myInv(np.polyfit(groundTruth[maskBreast[:,:,p]][:,p], unique_rlzs[maskBreast[:,:,p]], 1)), unique_rlzs)
+                restDose_MB_rlzs[:,:,p,idX] = np.reshape(unique_rlzs, (nRows,nCols))
             
-        # # restDose_MB[reduc] = restDose_MB_rlzs 
+        # restDose_MB[reduc] = restDose_MB_rlzs
         
-        # # Calculations for FD, MB and RD
-        # for idX, reduc in enumerate(reducFactors): 
-        #     mnse_RD[idX,:], resNoiseVar_RD[idX,:], bias2_RD[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(reduDose_rlzs[maskBreast], axis=0))
-        #     mnse_MB[idX,:], resNoiseVar_MB[idX,:], bias2_MB[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(restDose_MB_rlzs[maskBreast], axis=0))
+        # Calculations for FD, MB and RD
+        for idX, reduc in enumerate(reducFactors):
+            mnse_RD[idX,:], resNoiseVar_RD[idX,:], bias2_RD[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(reduDose_rlzs[maskBreast], axis=0))
+            mnse_MB[idX,:], resNoiseVar_MB[idX,:], bias2_MB[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(restDose_MB_rlzs[maskBreast], axis=0))
            
-        #     df = pd.DataFrame(np.array(((["{:.2f} [{:.2f}, {:.2f}]".format(100*mnse_MB[idX,0], 100*mnse_MB[idX,1], 100*mnse_MB[idX,2]),"{:.2f} [{:.2f}, {:.2f}]".format(100*resNoiseVar_MB[idX,0], 100*resNoiseVar_MB[idX,1], 100*resNoiseVar_MB[idX,2]),"{:.2f} [{:.2f}, {:.2f}]".format(100*bias2_MB[idX,0], 100*bias2_MB[idX,1], 100*bias2_MB[idX,2])]),
-        #                                 (["{:.2f} [{:.2f}, {:.2f}]".format(100*mnse_RD[idX,0], 100*mnse_RD[idX,1], 100*mnse_RD[idX,2]),"{:.2f} [{:.2f}, {:.2f}]".format(100*resNoiseVar_RD[idX,0], 100*resNoiseVar_RD[idX,1], 100*resNoiseVar_RD[idX,2]),"{:.2f} [{:.2f}, {:.2f}]".format(100*bias2_RD[idX,0], 100*bias2_RD[idX,1], 100*bias2_RD[idX,2])]),
-        #                                 ),ndmin=2),
-        #                       columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
-        #                       index=["Model-Based","Noisy-{}mAs".format(mAsReducFactors)])
+            df = pd.DataFrame(np.array(((["{:.7f} [{:.7f}, {:.7f}]".format(mnse_MB[idX,0], mnse_MB[idX,1], mnse_MB[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_MB[idX,0], resNoiseVar_MB[idX,1], resNoiseVar_MB[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_MB[idX,0], bias2_MB[idX,1], bias2_MB[idX,2])]),
+                                        (["{:.7f} [{:.7f}, {:.7f}]".format(mnse_RD[idX,0], mnse_RD[idX,1], mnse_RD[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_RD[idX,0], resNoiseVar_RD[idX,1], resNoiseVar_RD[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_RD[idX,0], bias2_RD[idX,1], bias2_RD[idX,2])]),
+                                        ),ndmin=2),
+                              columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
+                              index=["Model-Based","Noisy-{}mAs".format(mAsReducFactors)])
             
-        # df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
+        df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
         
-    # del reduDose_rlzs, restDose_MB_rlzs, unique_rlzs, all_rlzs
+    del reduDose_rlzs, restDose_MB_rlzs, unique_rlzs, all_rlzs
     
     
     # %% MNSE calculation
@@ -219,7 +220,7 @@ if __name__ == '__main__':
             print('Reading and calculating {}({}mAs) images...'.format(DL_type,mAsReducFactors))
             
             # DL restored doses
-            paths = list(pathlib.Path(path2Read + "Restorations/31_" + str(mAsReducFactors) ).glob('DBT_DL_' + DL_type + '*')) 
+            paths = list(pathlib.Path(path2Read + "Restorations/31_" + str(mAsReducFactors) ).glob(DL_type + '*'))
             if paths == []:
                 raise ValueError('No DL results found.')
             restDose_DL_rlzs = np.empty(shape=(nRows,nCols,15,n_rlzs_fullDose))
@@ -233,13 +234,13 @@ if __name__ == '__main__':
                                   
     
             mnse_DL[idX,:], resNoiseVar_DL[idX,:], bias2_DL[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(restDose_DL_rlzs[maskBreast], axis=0))
+
             
-            
-            df = pd.DataFrame(np.array(["{:.2f} [{:.2f}, {:.2f}]".format(100*mnse_DL[idX,0], 100*mnse_DL[idX,1], 100*mnse_DL[idX,2]),
-                                "{:.2f} [{:.2f}, {:.2f}]".format(100*resNoiseVar_DL[idX,0], 100*resNoiseVar_DL[idX,1], 100*resNoiseVar_DL[idX,2]),
-                                "{:.2f} [{:.2f}, {:.2f}]".format(100*bias2_DL[idX,0], 100*bias2_DL[idX,1], 100*bias2_DL[idX,2])], ndmin=2),
+            df = pd.DataFrame(np.array(["{:.7f} [{:.7f}, {:.7f}]".format(mnse_DL[idX,0], mnse_DL[idX,1], mnse_DL[idX,2]),
+                                "{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_DL[idX,0], resNoiseVar_DL[idX,1], resNoiseVar_DL[idX,2]),
+                                "{:.7f} [{:.7f}, {:.7f}]".format(bias2_DL[idX,0], bias2_DL[idX,1], bias2_DL[idX,2])], ndmin=2),
                               columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
                               index=["DL-{}-{}mAs".format(DL_type,mAsReducFactors)])
             
             df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
-                
+            print(df)
