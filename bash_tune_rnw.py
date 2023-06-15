@@ -10,11 +10,11 @@ import os
 
 from libs.utilities import removedir, makedir
 
-python_path = "/home/rodrigo/Documents/Rodrigo/Python_VE/science/bin/python"
-# python_path = "/home/laviusp/Documents/pyvenv/science/bin/python"
+# python_path = "/home/rodrigo/Documents/Rodrigo/Python_VE/science/bin/python"
+python_path = "/home/laviusp/Documents/pyvenv/science/bin/python"
 
-restoration_path = '/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/Restorations/31_30/'
-# restoration_path = '/home/laviusp/Documents/Rodrigo_Vimieiro/phantom/Restorations/31_30'
+# restoration_path = '/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/Restorations/31_30/'
+restoration_path = '/home/laviusp/Documents/Rodrigo_Vimieiro/phantom/Restorations/31_30'
 
 rnw_weights = [0.00000000, 0.10526316, 0.21052632, 0.31578947, 0.42105263,
                0.52631579, 0.63157895, 0.73684211, 0.84210526, 0.94736842,
@@ -25,67 +25,68 @@ rnw_weights = [0.00000000, 0.10526316, 0.21052632, 0.31578947, 0.42105263,
                0.05513785, 0.06015038, 0.06516291, 0.07017544, 0.07518797,
                0.08020050, 0.08521303, 0.09022557, 0.09523810, 0.10025063]
 
-# rnw_weights = [0.0031493]
+rnw_weights = [0.0031493]
 
 models = ['ResResNet', 'UNet2', 'RED']
 
-# models = ['RED']
+# models = ['ResResNet']
 
-framework = 'Noise2Sim'#'VSTasLayer-MNSE'  #
+framework = 'VSTasLayer-MNSE'  # 'Noise2Sim'#'PL4' #
 n_epochs = 5
 
 for model in models:
     for rnw_weight in rnw_weights:
-
         ##########  Train ##########
-        python_command = "{} main_training_MNSE.py \
-                  --nep {} \
-                  --rnw {} \
-                  --model {}".format(python_path,
-                                     n_epochs,
-                                     rnw_weight,
-                                     model)
-
-        print(python_command)
-        os.system(python_command)
+        # python_command = "{} main_training_MNSE.py \
+        #           --nep {} \
+        #           --rnw {} \
+        #           --model {}".format(python_path,
+        #                              n_epochs,
+        #                              rnw_weight,
+        #                              model)
+        #
+        # print(python_command)
+        # os.system(python_command)
 
         #########  Test ##########
         python_command = "{} main_testing.py \
-                          --nep {} \
                           --rnw {} \
                           --model {} \
                           --fmw {}".format(python_path,
-                                             n_epochs,
-                                             rnw_weight,
-                                             model,
-                                             framework)
+                                           rnw_weight,
+                                           model,
+                                           framework)
 
         print(python_command)
         makedir(restoration_path)
         os.system(python_command)
 
-        ##########  MNSE ##########
+        ########  Test (SDC) ##########
+        # python_command = "{} main_testing_SDC.py \
+        #                   --fmw {} \
+        #                   --model {} ".format(python_path, framework, model)
+        #
+        # print(python_command)
+        # os.system(python_command)
+
+        # ##########  MNSE ##########
         python_command = "{} evaluation/MNSE.py \
-                  --model {}_DBT_{}_rnw{} --rf {:d}".format(python_path,
-                                                            model,
-                                                            framework,
-                                                            rnw_weight,
-                                                            50)
+                  --model {}_DBT_{} --rf {:d}".format(python_path,
+                                                      model,
+                                                      framework,
+                                                      50)
 
         print(python_command)
         os.system(python_command)
 
         ##########  SNR ##########
-        python_command = "{} evaluation/SIIM_QILV_SNR.py \
-                          --model {}_DBT_{}_rnw{} --rf {:d}".format(python_path,
-                                                                    model,
-                                                                    framework,
-                                                                    rnw_weight,
-                                                                    50)
+        # python_command = "{} evaluation/SSIM_QILV_SNR.py \
+        #                   --model {}_DBT_{} --rf {:d}".format(python_path,
+        #                                                             model,
+        #                                                             framework,
+        #                                                             50)
+        #
+        # print(python_command)
+        # os.system(python_command)
 
-        print(python_command)
-        os.system(python_command)
-
-
-
-        # removedir(restoration_path)
+        removedir(restoration_path)
