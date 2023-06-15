@@ -62,10 +62,21 @@ if __name__ == '__main__':
     
     #%% General parameters
     
-    # path2Read = '/home/laviusp/Documents/Rodrigo_Vimieiro/phantom/'
-    path2Read = '/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/'
+    path2Read = '/home/laviusp/Documents/Rodrigo_Vimieiro/phantom/'
+    # path2Read = '/media/rodrigo/Dados_2TB/Imagens/UPenn/Phantom/Anthropomorphic/DBT/'
 
     DL_types = [args['model']]
+
+    # DL_types = ['RED_DBT_PL4',
+    #             'UNet2_DBT_PL4',
+    #             'ResResNet_DBT_PL4',
+    #             'RED_DBT_Noise2Sim',
+    #             'UNet2_DBT_Noise2Sim',
+    #             'ResResNet_DBT_Noise2Sim',
+    #             'RED_DBT_VSTasLayer-MNSE_rnw0.02506266',
+    #             'UNet2_DBT_VSTasLayer-MNSE_rnw0.03508772',
+    #             'ResResNet_DBT_VSTasLayer-MNSE_rnw0.42105263',
+    #             ]
     
     
     #%% Image parameters
@@ -75,8 +86,8 @@ if __name__ == '__main__':
     
     mAsFullDose = 60
     reducFactors = [args['rf']]
-    
-    n_all_fullDose = 20
+
+    n_all_fullDose = 20 - 1
     n_rlzs_fullDose = 10
     n_rlzs_GT = 10
     DL_ind = 0
@@ -105,7 +116,11 @@ if __name__ == '__main__':
     paths = sorted(list(pathlib.Path(path2Read + "31_" + str(mAsFullDose) ).glob('*/')))
     
     if paths == []:
-        raise ValueError('No FD results found.') 
+        raise ValueError('No FD results found.')
+
+    # Remove Raw_31_60_174911
+    paths.pop(1)
+    paths.reverse()
     
     print('Reading FD images...')
     for idX, path in enumerate(paths):
@@ -139,10 +154,20 @@ if __name__ == '__main__':
                   
     
     # Apply breask mask on both full dose anf GT realizations
-    groundTruth_rlzs = np.expand_dims(fullDose_all[:,:,:,n_rlzs_GT:][maskBreast], axis=0)
-    fullDose_rlzs = np.expand_dims(fullDose_all[:,:,:,:n_rlzs_GT][maskBreast], axis=0)
-    
-    mnse_FD, resNoiseVar_FD, bias2_FD, _ = pyeval.MNSE(groundTruth_rlzs, fullDose_rlzs)
+    groundTruth_rlzs = fullDose_all[:,:,:,n_rlzs_GT:]
+    fullDose_rlzs = fullDose_all[:,:,:,:n_rlzs_GT]
+
+    mnse_FD_list, resNoiseVar_FD_list, bias2_FD_list = [], [], []
+    for p in range(15):
+        mnse_FD_tmp, resNoiseVar_FD_tmp, bias2_FD_tmp, _ = pyeval.MNSE(np.expand_dims(groundTruth_rlzs[:,:,p][maskBreast[:,:,p]], axis=0),
+                                                                       np.expand_dims(fullDose_rlzs[:,:,p][maskBreast[:,:,p]], axis=0))
+        mnse_FD_list.append(mnse_FD_tmp[0])
+        resNoiseVar_FD_list.append(resNoiseVar_FD_tmp[0])
+        bias2_FD_list.append(bias2_FD_tmp[0])
+
+    mnse_FD = [np.mean(mnse_FD_list), np.std(mnse_FD_list, ddof=1), 0]
+    resNoiseVar_FD = [np.mean(resNoiseVar_FD_list), np.std(resNoiseVar_FD_list, ddof=1), 0]
+    bias2_FD = [np.mean(bias2_FD_list), np.std(bias2_FD_list, ddof=1), 0]
     
     df = pd.DataFrame(np.array(((["{:.7f} [{:.7f}, {:.7f}]".format(mnse_FD[0], mnse_FD[1], mnse_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_FD[0], resNoiseVar_FD[1], resNoiseVar_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_FD[0], bias2_FD[1], bias2_FD[2])]),
                                 ),ndmin=2),
@@ -151,7 +176,7 @@ if __name__ == '__main__':
             
     df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
     
-    del fullDose_all, fullDose_rlzs
+    del fullDose_all, fullDose_rlzs, mnse_FD_list, resNoiseVar_FD_list, bias2_FD_list
     
     # Read MB, restored results and reuced doses
     for reduc in reducFactors:
@@ -189,14 +214,43 @@ if __name__ == '__main__':
                 restDose_MB_rlzs[:,:,p,idX] = np.reshape(unique_rlzs, (nRows,nCols))
             
         # restDose_MB[reduc] = restDose_MB_rlzs
-        
+
         # Calculations for FD, MB and RD
         for idX, reduc in enumerate(reducFactors):
-            mnse_RD[idX,:], resNoiseVar_RD[idX,:], bias2_RD[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(reduDose_rlzs[maskBreast], axis=0))
-            mnse_MB[idX,:], resNoiseVar_MB[idX,:], bias2_MB[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(restDose_MB_rlzs[maskBreast], axis=0))
-           
-            df = pd.DataFrame(np.array(((["{:.7f} [{:.7f}, {:.7f}]".format(mnse_MB[idX,0], mnse_MB[idX,1], mnse_MB[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_MB[idX,0], resNoiseVar_MB[idX,1], resNoiseVar_MB[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_MB[idX,0], bias2_MB[idX,1], bias2_MB[idX,2])]),
-                                        (["{:.7f} [{:.7f}, {:.7f}]".format(mnse_RD[idX,0], mnse_RD[idX,1], mnse_RD[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_RD[idX,0], resNoiseVar_RD[idX,1], resNoiseVar_RD[idX,2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_RD[idX,0], bias2_RD[idX,1], bias2_RD[idX,2])]),
+
+            mnse_RD_list, resNoiseVar_RD_list, bias2_RD_list = [], [], []
+
+            for p in range(15):
+                mnse_RD_tmp, resNoiseVar_RD_tmp, bias2_RD_tmp, _ = pyeval.MNSE(
+                    np.expand_dims(groundTruth_rlzs[:,:,p][maskBreast[:, :, p]], axis=0),
+                    np.expand_dims(reduDose_rlzs[:,:,p][maskBreast[:, :, p]], axis=0))
+                mnse_RD_list.append(mnse_RD_tmp[0])
+                resNoiseVar_RD_list.append(resNoiseVar_RD_tmp[0])
+                bias2_RD_list.append(bias2_RD_tmp[0])
+
+            mnse_RD = [np.mean(mnse_RD_list), np.std(mnse_RD_list, ddof=1), 0]
+            resNoiseVar_RD = [np.mean(resNoiseVar_RD_list), np.std(resNoiseVar_RD_list, ddof=1), 0]
+            bias2_RD = [np.mean(bias2_RD_list), np.std(bias2_RD_list, ddof=1), 0]
+
+            mnse_MB_list, resNoiseVar_MB_list, bias2_MB_list = [], [], []
+
+            for p in range(15):
+                mnse_MB_tmp, resNoiseVar_MB_tmp, bias2_MB_tmp, _ = pyeval.MNSE(
+                    np.expand_dims(groundTruth_rlzs[:,:,p][maskBreast[:, :, p]], axis=0),
+                    np.expand_dims(restDose_MB_rlzs[:,:,p][maskBreast[:, :, p]], axis=0))
+                mnse_MB_list.append(mnse_MB_tmp[0])
+                resNoiseVar_MB_list.append(resNoiseVar_MB_tmp[0])
+                bias2_MB_list.append(bias2_MB_tmp[0])
+
+            mnse_MB = [np.mean(mnse_MB_list), np.std(mnse_MB_list, ddof=1), 0]
+            resNoiseVar_MB = [np.mean(resNoiseVar_MB_list), np.std(resNoiseVar_MB_list, ddof=1), 0]
+            bias2_MB = [np.mean(bias2_MB_list), np.std(bias2_MB_list, ddof=1), 0]
+
+            # mnse_RD[idX,:], resNoiseVar_RD[idX,:], bias2_RD[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(reduDose_rlzs[maskBreast], axis=0))
+            # mnse_MB[idX,:], resNoiseVar_MB[idX,:], bias2_MB[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(restDose_MB_rlzs[maskBreast], axis=0))
+
+            df = pd.DataFrame(np.array(((["{:.7f} [{:.7f}, {:.7f}]".format(mnse_MB[0], mnse_MB[1], mnse_MB[2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_MB[0], resNoiseVar_MB[1], resNoiseVar_MB[2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_MB[0], bias2_MB[1], bias2_MB[2])]),
+                                        (["{:.7f} [{:.7f}, {:.7f}]".format(mnse_RD[0], mnse_RD[1], mnse_RD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_RD[0], resNoiseVar_RD[1], resNoiseVar_RD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_RD[0], bias2_RD[1], bias2_RD[2])]),
                                         ),ndmin=2),
                               columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
                               index=["Model-Based","Noisy-{}mAs".format(mAsReducFactors)])
@@ -231,16 +285,29 @@ if __name__ == '__main__':
                     unique_rlzs = all_rlzs[:,:,p]
                     unique_rlzs = np.polyval(myInv(np.polyfit(groundTruth[maskBreast[:,:,p]][:,p], unique_rlzs[maskBreast[:,:,p]], 1)), unique_rlzs)
                     restDose_DL_rlzs[:,:,p,idZ]  = np.reshape(unique_rlzs, (nRows,nCols))
-                                  
-    
-            mnse_DL[idX,:], resNoiseVar_DL[idX,:], bias2_DL[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(restDose_DL_rlzs[maskBreast], axis=0))
+
+            mnse_DL_list, resNoiseVar_DL_list, bias2_DL_list = [], [], []
+
+            for p in range(15):
+                mnse_DL_tmp, resNoiseVar_DL_tmp, bias2_DL_tmp, _ = pyeval.MNSE(
+                    np.expand_dims(groundTruth_rlzs[:,:,p][maskBreast[:, :, p]], axis=0),
+                    np.expand_dims(restDose_DL_rlzs[:,:,p][maskBreast[:, :, p]], axis=0))
+                mnse_DL_list.append(mnse_DL_tmp[0])
+                resNoiseVar_DL_list.append(resNoiseVar_DL_tmp[0])
+                bias2_DL_list.append(bias2_DL_tmp[0])
+
+            mnse_DL = [np.mean(mnse_DL_list), np.std(mnse_DL_list, ddof=1), 0]
+            resNoiseVar_DL = [np.mean(resNoiseVar_DL_list), np.std(resNoiseVar_DL_list, ddof=1), 0]
+            bias2_DL = [np.mean(bias2_DL_list), np.std(bias2_DL_list, ddof=1), 0]
+
+            # mnse_DL[idX,:], resNoiseVar_DL[idX,:], bias2_DL[idX,:], _= pyeval.MNSE(groundTruth_rlzs, np.expand_dims(restDose_DL_rlzs[maskBreast], axis=0))
 
             
-            df = pd.DataFrame(np.array(["{:.7f} [{:.7f}, {:.7f}]".format(mnse_DL[idX,0], mnse_DL[idX,1], mnse_DL[idX,2]),
-                                "{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_DL[idX,0], resNoiseVar_DL[idX,1], resNoiseVar_DL[idX,2]),
-                                "{:.7f} [{:.7f}, {:.7f}]".format(bias2_DL[idX,0], bias2_DL[idX,1], bias2_DL[idX,2])], ndmin=2),
+            df = pd.DataFrame(np.array(["{:.7f} [{:.7f}, {:.7f}]".format(mnse_DL[0], mnse_DL[1], mnse_DL[2]),
+                                "{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_DL[0], resNoiseVar_DL[1], resNoiseVar_DL[2]),
+                                "{:.7f} [{:.7f}, {:.7f}]".format(bias2_DL[0], bias2_DL[1], bias2_DL[2])], ndmin=2),
                               columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
                               index=["DL-{}-{}mAs".format(DL_type,mAsReducFactors)])
             
             df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
-            print(df)
+            # print(df)
