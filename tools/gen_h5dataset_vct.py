@@ -11,10 +11,12 @@ import matplotlib.pyplot as plt
 import pydicom as dicom
 import h5py
 import sys
+import pywt
 
 from pathlib import Path
 from scipy.io import loadmat
 from PIL import Image
+from tqdm import tqdm
 
 sys.path.insert(1, '../')
 
@@ -31,6 +33,31 @@ def VST(img, lambda_e):
     img = 2 * np.sqrt(img_norm + 3./8. + sigma_e**2)
     
     return img
+
+def sigmaWaveletAWGN(img):
+    # 2D Discrete Wavelet Transform.
+    coeffs2 = pywt.dwt2(img, 'db1')
+
+    # Approximation, horizontal detail, vertical detail and diagonal
+    # detail coefficients respectively.
+    cA, (cH, cV, cD) = coeffs2
+
+    sigma_hat = np.median(np.abs(cD)) / 0.674489750196082
+
+    return sigma_hat
+
+def calcSigmaGAT(img):
+    # Image Size
+    M, N = img.shape
+
+    # Region to crop
+    ii = np.arange((M / 2) - 150 - 1, (M / 2) + 150, 1, dtype='int')
+    jj = np.arange(200 - 1, 400, 1, dtype='int')
+    jj = N - jj
+
+    sigmaGAT = sigmaWaveletAWGN(img[np.ix_(ii, jj)])
+
+    return sigmaGAT
 
 def get_img_bounds(img):
     '''Get image bounds of the segmented breast from the GT'''
@@ -57,7 +84,7 @@ def extract_rois(img_gt, img_fd, img_ld, lambda_e_nproj, rlz, img_id_offset):
     # Check if images are the same size
     assert img_ld.shape == img_fd.shape == img_gt.shape == lambda_e_nproj.shape, "image sizes differ"
     
-    global trow_away, img_id
+    global trow_away, img_id, sigmas, min_global_img, max_global_img
     
     # Get image bounds of the segmented breast from the GT
     w_min, h_min, w_max, h_max = get_img_bounds(img_gt)
@@ -67,7 +94,12 @@ def extract_rois(img_gt, img_fd, img_ld, lambda_e_nproj, rlz, img_id_offset):
     img_fd = img_fd[w_min:w_max, h_min:h_max]
     img_ld = img_ld[w_min:w_max, h_min:h_max]
     lambda_e_nproj = lambda_e_nproj[w_min:w_max, h_min:h_max]
-    
+
+    img_fd_vst = VST(img_fd, lambda_e_nproj)
+    img_ld_vst = VST(img_ld, lambda_e_nproj)
+    sigmas.append(calcSigmaGAT(img_fd_vst))
+    sigmas.append(calcSigmaGAT(img_fd_vst))
+
     # Get updated image shape
     w, h = img_gt.shape
     
@@ -85,7 +117,16 @@ def extract_rois(img_gt, img_fd, img_ld, lambda_e_nproj, rlz, img_id_offset):
             
             # Am I geting at least one pixel from the breast?
             if np.sum(patch[2]>4000) < (0.7*(64*64)):
-                # patches.append(patch)
+
+                local_min = img_ld_vst[i:i+64, j:j+64].min()
+                local_max = img_ld_vst[i:i+64, j:j+64].max()
+
+                if local_min < min_global_img:
+                    min_global_img = local_min
+
+                if local_max > max_global_img:
+                    max_global_img = local_max
+
                 im_l = Image.fromarray(patch[0])
                 im_l.save(gen_path + 'low_rlz{}_id{:06d}.tif'.format(rlz,roi_count+img_id_offset))
                 
@@ -104,7 +145,7 @@ def extract_rois(img_gt, img_fd, img_ld, lambda_e_nproj, rlz, img_id_offset):
     return roi_count
 
 
-def process_each_folder(folder_name, redFactor, num_proj=15):
+def process_each_folder(folder_name):
     '''Process DBT folder to extract low-dose and full-dose rois'''
     
     global img_id
@@ -120,7 +161,7 @@ def process_each_folder(folder_name, redFactor, num_proj=15):
         
         img_gt = dicom.read_file(gt_file_name).pixel_array
   
-        for rlz in range(1,6):
+        for rlz in range(1, 6):
             
             fd_file_name = noisy_path + '-{}mAs-rlz{}/_{}.dcm'.format(mAsFullDose, rlz, proj)
             ld_file_name = noisy_path + '-{}mAs-rlz{}/_{}.dcm'.format(mAsLowDose, rlz, proj)
@@ -128,7 +169,7 @@ def process_each_folder(folder_name, redFactor, num_proj=15):
             img_ld = dicom.read_file(ld_file_name).pixel_array
             img_fd = dicom.read_file(fd_file_name).pixel_array
     
-            roi_count = extract_rois(img_gt, img_fd, img_ld, lambda_e_nproj[:,-img_ld.shape[1]:, proj], rlz, img_id)
+            roi_count = extract_rois(img_gt, img_fd, img_ld, lambda_e_nproj[:, -img_ld.shape[1]:, proj], rlz, img_id)
             
             if rlz == 5:       
                 img_id += roi_count
@@ -155,6 +196,7 @@ if __name__ == '__main__':
     np.random.seed(0)
     
     img_id = 0
+    sigmas = []
     
     min_global_img = np.inf
     max_global_img = 0
@@ -166,19 +208,19 @@ if __name__ == '__main__':
     # Create h5 file
     f = h5py.File('{}DBT_VCT_training_{}mAs.h5'.format(path2write, mAsLowDose), 'a')
     
-    Parameters_Hol_DBT_R_CC_All = loadmat('/media/rodrigo/Dados_2TB/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All_VCT.mat')
+    Parameters_Hol_DBT_L_CC_All = loadmat('/media/rodrigo/Dados_2TB/Estimativas_Parametros_Ruido/Hologic/DBT/Rodrigo/Parameters_Hol_DBT_R_CC_All_VCT.mat')
 
-    tau = Parameters_Hol_DBT_R_CC_All['tau'][0][0]
-    lambda_e_nproj = Parameters_Hol_DBT_R_CC_All['lambda']
-    sigma_e = Parameters_Hol_DBT_R_CC_All['sigma_E'][0][0]
+    tau = Parameters_Hol_DBT_L_CC_All['tau'][0][0]
+    lambda_e_nproj = Parameters_Hol_DBT_L_CC_All['lambda']
+    sigma_e = Parameters_Hol_DBT_L_CC_All['sigma_E'][0][0]
     
-    del Parameters_Hol_DBT_R_CC_All
+    del Parameters_Hol_DBT_L_CC_All
         
     # Loop on each DBT folder (projections)
-    for idX, folder_name in enumerate(folder_names):
+    for folder_name in tqdm(folder_names):
         
         # Get low-dose and full-dose rois
-        process_each_folder(folder_name, redFactor)        
+        process_each_folder(folder_name)
                 
     imgL2save = [] 
     imgH2save = [] 
@@ -234,7 +276,6 @@ if __name__ == '__main__':
             imgH2save = [] 
             imgGT2save = []
             save_loop += 1
-            
-    
+
     f.close() 
     removedir(gen_path)
