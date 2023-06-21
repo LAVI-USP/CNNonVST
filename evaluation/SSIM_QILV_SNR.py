@@ -29,6 +29,11 @@ def fspecial_gauss(size, sigma):
 
 
 def quality_index_local_variance(I, I2, Ws, raw=False, mask=None):
+
+
+    I = I.astype(np.float64)
+    I2 = I2.astype(np.float64)
+
     # Data type maximum range
     L = 2302  # 4095
 
@@ -43,7 +48,7 @@ def quality_index_local_variance(I, I2, Ws, raw=False, mask=None):
     else:
         window = fspecial_gauss(Ws, 1.5)
 
-    window = window / sum(sum(window[:]))
+    window = window / np.sum(window)
 
     # Local means
     M1 = fftconvolve(I, window, mode='same')
@@ -58,16 +63,16 @@ def quality_index_local_variance(I, I2, Ws, raw=False, mask=None):
         # Global statistics:
         m1 = np.mean(V1[mask])
         m2 = np.mean(V2[mask])
-        s1 = np.std(V1[mask])
-        s2 = np.std(V2[mask])
+        s1 = np.std(V1[mask], ddof=1)
+        s2 = np.std(V2[mask], ddof=1)
         s12 = np.mean((V1[mask] - m1) * (V2[mask] - m2))
 
     else:
         # Global statistics:
         m1 = np.mean(V1)
         m2 = np.mean(V2)
-        s1 = np.std(V1)
-        s2 = np.std(V2)
+        s1 = np.std(V1, ddof=1)
+        s2 = np.std(V2, ddof=1)
         s12 = np.mean((V1 - m1) * (V2 - m2))
 
     # Index
@@ -93,7 +98,7 @@ def readDicom(dir2Read, imgSize):
 
         ind = int(str(dcm).split('/')[-1].split('_')[-1].split('.')[0])
 
-        dcmImg[:, :, ind] = dcmH.pixel_array[130:-130, 50:-50].astype('float32')
+        dcmImg[:, :, ind] = dcmH.pixel_array[130:-130, 50:-50].astype(np.float64)
 
     return dcmImg
 
@@ -169,7 +174,7 @@ if __name__ == '__main__':
 
     # Remove Raw_31_60_174911
     paths.pop(1)
-    paths.reverse()
+    # paths.reverse()
 
     print('Reading FD images...')
     for idX, path in enumerate(paths):
@@ -202,6 +207,7 @@ if __name__ == '__main__':
             fullDose_all[:, :, p, z] = np.reshape(unique_rlzs, (nRows, nCols))
 
     # print(fullDose_all[maskBreast].min(), fullDose_all[maskBreast].max())
+
     std_FD = np.sqrt(np.var(fullDose_all, ddof=1, axis=-1))
     mean_FD = np.mean(fullDose_all, axis=-1)
     mask_std = np.where(std_FD == 0, 1, 0)
@@ -368,6 +374,8 @@ if __name__ == '__main__':
                         unique_rlzs)
                     restDose_DL_rlzs[:, :, p, idZ] = np.reshape(unique_rlzs, (nRows, nCols))
 
+            # print(restDose_DL_rlzs[maskBreast].min(), restDose_DL_rlzs[maskBreast].max())
+
             restDose_DL_std = np.sqrt(np.var(restDose_DL_rlzs, ddof=1, axis=-1))
             restDose_DL_mean = np.mean(restDose_DL_rlzs, axis=-1)
             # mask_std |= np.where(restDose_DL_std == 0, 1, 0)
@@ -404,7 +412,7 @@ if __name__ == '__main__':
         for p in range(15):
             snr_RD.append(np.mean(snr_2D[:, :, p][mask_std[:, :, p]]))
 
-        snr_RD_CI = np.std(snr_2D, ddof=1), 0
+        snr_RD_CI = np.std(snr_RD, ddof=1), 0
         snr_RD = np.mean(snr_RD)
 
         # snr_RD_CI = st.t.interval(0.95, snr_2D[mask_std].shape[0] - 1,
