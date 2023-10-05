@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     # Remove Raw_31_60_174911
     paths.pop(1)
-    paths.reverse()
+    # paths.reverse()
     
     print('Reading FD images...')
     for idX, path in enumerate(paths):
@@ -168,7 +168,14 @@ if __name__ == '__main__':
     mnse_FD = [np.mean(mnse_FD_list), np.std(mnse_FD_list, ddof=1), 0]
     resNoiseVar_FD = [np.mean(resNoiseVar_FD_list), np.std(resNoiseVar_FD_list, ddof=1), 0]
     bias2_FD = [np.mean(bias2_FD_list), np.std(bias2_FD_list, ddof=1), 0]
-    
+
+    df = pd.DataFrame(np.array(((["{:.7f} [{:.7f}, {:.7f}]".format(mnse_FD[0], mnse_FD[1], mnse_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_FD[0], resNoiseVar_FD[1], resNoiseVar_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_FD[0], bias2_FD[1], bias2_FD[2])]),
+                                ),ndmin=2),
+                                  columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
+                                  index=["Full Dose"])
+
+    df.to_csv(r'outputs.txt', sep=' ', header=None, mode='a')
+
     df = pd.DataFrame(np.array(((["{:.7f} [{:.7f}, {:.7f}]".format(mnse_FD[0], mnse_FD[1], mnse_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(resNoiseVar_FD[0], resNoiseVar_FD[1], resNoiseVar_FD[2]),"{:.7f} [{:.7f}, {:.7f}]".format(bias2_FD[0], bias2_FD[1], bias2_FD[2])]),
                                 ),ndmin=2),
                                   columns=['Total MNSE', 'Residual-Noise', 'Bias-Squared'],
